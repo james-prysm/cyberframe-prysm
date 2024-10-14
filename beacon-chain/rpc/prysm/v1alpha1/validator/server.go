@@ -67,6 +67,8 @@ type Server struct {
 	SyncCommitteePool          synccommittee.Pool
 	BlockReceiver              blockchain.BlockReceiver
 	BlobReceiver               blockchain.BlobReceiver
+	PayloadAttestationReceiver blockchain.PayloadAttestationReceiver
+	ExecutionPayloadReceiver   blockchain.ExecutionPayloadReceiver
 	MockEth1Votes              bool
 	Eth1BlockFetcher           execution.POWBlockFetcher
 	PendingDepositsFetcher     depositsnapshot.PendingDepositsFetcher
@@ -79,7 +81,6 @@ type Server struct {
 	BLSChangesPool             blstoexec.PoolManager
 	ClockWaiter                startup.ClockWaiter
 	CoreService                *core.Service
-	PayloadAttestationReceiver blockchain.PayloadAttestationReceiver
 }
 
 // WaitForActivation checks if a validator public key exists in the active validator registry of the current

@@ -67,7 +67,7 @@ message GenericSignedBeaconBlock {
         SignedBlindedBeaconBlockElectra blinded_electra = 10;
 
         // Representing a signed ePBS block
-        SignedBeaconBlockePBS epbs = 11;
+        SignedBeaconBlockEpbs epbs = 11;
     }
     bool is_blinded = 100;
     reserved 101; // Deprecated fields
@@ -106,7 +106,7 @@ message GenericBeaconBlock {
         BlindedBeaconBlockElectra blinded_electra = 10;
 
         // ePBS block
-        BeaconBlockePBS epbs = 11;
+        BeaconBlockEpbs epbs = 11;
     }
     bool is_blinded = 100;
     string payload_value = 101;

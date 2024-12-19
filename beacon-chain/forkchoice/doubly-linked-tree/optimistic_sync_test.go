@@ -385,6 +385,13 @@ func TestSetOptimisticToInvalid_ForkAtMerge_bis(t *testing.T) {
 	require.DeepEqual(t, roots, [][32]byte{{'b'}, {'c'}, {'d'}, {'e'}})
 }
 
+func TestSetOptimisticToInvalid_InvalidRoot(t *testing.T) {
+	ctx := context.Background()
+	f := setup(1, 1)
+	_, err := f.SetOptimisticToInvalid(ctx, [32]byte{}, [32]byte{}, [32]byte{})
+	require.ErrorContains(t, "attempting to set the root node to invalid", err)
+}
+
 func TestSetOptimisticToValid(t *testing.T) {
 	f := setup(1, 1)
 	op, err := f.IsOptimistic([32]byte{})

@@ -2,18 +2,17 @@ package sync
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/feed"
 	statefeed "github.com/prysmaticlabs/prysm/v5/beacon-chain/core/feed/state"
-	"github.com/prysmaticlabs/prysm/v5/consensus-types/interfaces"
+	light_client "github.com/prysmaticlabs/prysm/v5/consensus-types/light-client"
 	"google.golang.org/protobuf/proto"
 )
 
 func (s *Service) lightClientFinalityUpdateSubscriber(_ context.Context, msg proto.Message) error {
-	update, ok := msg.(interfaces.LightClientFinalityUpdate)
-	if !ok {
-		return fmt.Errorf("message type %T is not a light client finality update", msg)
+	update, err := light_client.NewWrappedFinalityUpdate(msg)
+	if err != nil {
+		return err
 	}
 
 	log.Info("LC: storing new finality update in p2p subscriber")
@@ -28,9 +27,9 @@ func (s *Service) lightClientFinalityUpdateSubscriber(_ context.Context, msg pro
 }
 
 func (s *Service) lightClientOptimisticUpdateSubscriber(_ context.Context, msg proto.Message) error {
-	update, ok := msg.(interfaces.LightClientOptimisticUpdate)
-	if !ok {
-		return fmt.Errorf("message type %T is not a light client optimistic update", msg)
+	update, err := light_client.NewWrappedOptimisticUpdate(msg)
+	if err != nil {
+		return err
 	}
 
 	log.Info("LC: storing new optimistic update in p2p subscriber")

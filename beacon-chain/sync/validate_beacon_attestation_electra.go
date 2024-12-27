@@ -20,9 +20,6 @@ func validateCommitteeIndexElectra(ctx context.Context, a ethpb.Att) (primitives
 	if !ok {
 		return 0, pubsub.ValidationIgnore, fmt.Errorf("attestation has wrong type (expected %T, got %T)", &ethpb.AttestationElectra{}, a)
 	}
-	committeeIndex, err := a.GetCommitteeIndex()
-	if err != nil {
-		return 0, pubsub.ValidationReject, err
-	}
+	committeeIndex := a.GetCommitteeIndex()
 	return committeeIndex, pubsub.ValidationAccept, nil
 }

@@ -121,12 +121,12 @@ func (s *Service) validateCommitteeIndexBeaconAttestation(ctx context.Context, p
 	if !s.hasBlockAndState(ctx, blockRoot) {
 		// A node doesn't have the block, it'll request from peer while saving the pending attestation to a queue.
 		if att.Version() >= version.Electra {
-			a, ok := att.(*eth.AttestationElectra)
+			a, ok := att.(*eth.SingleAttestation)
 			// This will never fail in practice because we asserted the version
 			if !ok {
-				return pubsub.ValidationIgnore, fmt.Errorf("attestation has wrong type (expected %T, got %T)", &eth.AttestationElectra{}, att)
+				return pubsub.ValidationIgnore, fmt.Errorf("attestation has wrong type (expected %T, got %T)", &eth.SingleAttestation{}, att)
 			}
-			s.savePendingAtt(&eth.SignedAggregateAttestationAndProofElectra{Message: &eth.AggregateAttestationAndProofElectra{Aggregate: a}})
+			s.savePendingAtt(&eth.SignedAggregateAttestationAndProofSingle{Message: &eth.AggregateAttestationAndProofSingle{Aggregate: a}})
 		} else {
 			a, ok := att.(*eth.Attestation)
 			// This will never fail in practice because we asserted the version
@@ -159,7 +159,7 @@ func (s *Service) validateCommitteeIndexBeaconAttestation(ctx context.Context, p
 		return validationRes, err
 	}
 
-	validationRes, err = s.validateUnaggregatedAttWithState(ctx, att, preState)
+	_, validationRes, err = s.validateUnaggregatedAttWithState(ctx, att, preState)
 	if validationRes != pubsub.ValidationAccept {
 		return validationRes, err
 	}
@@ -228,17 +228,14 @@ func (s *Service) validateCommitteeIndexAndCount(
 	a eth.Att,
 	bs state.ReadOnlyBeaconState,
 ) (primitives.CommitteeIndex, uint64, pubsub.ValidationResult, error) {
-	ci, result, err := s.validateCommitteeIndex(ctx, a)
-	if result != pubsub.ValidationAccept {
-		return 0, 0, result, err
-	}
 	valCount, err := helpers.ActiveValidatorCount(ctx, bs, slots.ToEpoch(a.GetData().Slot))
 	if err != nil {
 		return 0, 0, pubsub.ValidationIgnore, err
 	}
 	count := helpers.SlotCommitteeCount(valCount)
+	ci := a.GetCommitteeIndex()
 	if uint64(ci) > count {
-		return 0, 0, pubsub.ValidationReject, fmt.Errorf("committee index %d > %d", a.GetData().CommitteeIndex, count)
+		return 0, 0, pubsub.ValidationReject, fmt.Errorf("committee index %d > %d", ci, count)
 	}
 	return ci, valCount, pubsub.ValidationAccept, nil
 }
@@ -252,34 +249,36 @@ func (s *Service) validateCommitteeIndex(ctx context.Context, a eth.Att) (primit
 
 // This validates beacon unaggregated attestation using the given state, the validation consists of bitfield length and count consistency
 // and signature verification.
-func (s *Service) validateUnaggregatedAttWithState(ctx context.Context, a eth.Att, bs state.ReadOnlyBeaconState) (pubsub.ValidationResult, error) {
+func (s *Service) validateUnaggregatedAttWithState(ctx context.Context, a eth.Att, bs state.ReadOnlyBeaconState) ([]primitives.ValidatorIndex, pubsub.ValidationResult, error) {
 	ctx, span := trace.StartSpan(ctx, "sync.validateUnaggregatedAttWithState")
 	defer span.End()
 
-	committeeIndex, err := a.GetCommitteeIndex()
-	if err != nil {
-		return pubsub.ValidationIgnore, err
-	}
+	committeeIndex := a.GetCommitteeIndex()
 
 	committee, result, err := s.validateBitLength(ctx, bs, a.GetData().Slot, committeeIndex, a.GetAggregationBits())
 	if result != pubsub.ValidationAccept {
-		return result, err
+		return nil, result, err
 	}
 
 	// Attestation must be unaggregated and the bit index must exist in the range of committee indices.
 	// Note: The Ethereum Beacon chain spec suggests (len(get_attesting_indices(state, attestation.data, attestation.aggregation_bits)) == 1)
 	// however this validation can be achieved without use of get_attesting_indices which is an O(n) lookup.
 	if a.GetAggregationBits().Count() != 1 || a.GetAggregationBits().BitIndices()[0] >= len(committee) {
-		return pubsub.ValidationReject, errors.New("attestation bitfield is invalid")
+		return nil, pubsub.ValidationReject, errors.New("attestation bitfield is invalid")
 	}
 
 	set, err := blocks.AttestationSignatureBatch(ctx, bs, []eth.Att{a})
 	if err != nil {
 		tracing.AnnotateError(span, err)
 		attBadSignatureBatchCount.Inc()
-		return pubsub.ValidationReject, err
+		return nil, pubsub.ValidationReject, err
 	}
-	return s.validateWithBatchVerifier(ctx, "attestation", set)
+	result, err = s.validateWithBatchVerifier(ctx, "attestation", set)
+	if result != pubsub.ValidationAccept {
+		tracing.AnnotateError(span, err)
+		return nil, result, err
+	}
+	return committee, pubsub.ValidationAccept, nil
 }
 
 func (s *Service) validateBitLength(

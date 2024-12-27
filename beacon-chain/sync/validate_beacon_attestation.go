@@ -72,14 +72,6 @@ func (s *Service) validateCommitteeIndexBeaconAttestation(ctx context.Context, p
 	if data.Slot == 0 {
 		return pubsub.ValidationIgnore, nil
 	}
-	// Broadcast the unaggregated attestation on a feed to notify other services in the beacon node
-	// of a received unaggregated attestation.
-	s.cfg.attestationNotifier.OperationFeed().Send(&feed.Event{
-		Type: operation.UnaggregatedAttReceived,
-		Data: &operation.UnAggregatedAttReceivedData{
-			Attestation: att,
-		},
-	})
 
 	// Attestation's slot is within ATTESTATION_PROPAGATION_SLOT_RANGE and early attestation
 	// processing tolerance.
@@ -92,14 +84,7 @@ func (s *Service) validateCommitteeIndexBeaconAttestation(ctx context.Context, p
 		return pubsub.ValidationReject, err
 	}
 
-	var validationRes pubsub.ValidationResult
-
-	committeeIndex, result, err := s.validateCommitteeIndex(ctx, att)
-	if result != pubsub.ValidationAccept {
-		wrappedErr := errors.Wrapf(err, "could not validate committee index for %s version", version.String(att.Version()))
-		tracing.AnnotateError(span, wrappedErr)
-		return result, wrappedErr
-	}
+	committeeIndex := att.GetCommitteeIndex()
 
 	if !features.Get().EnableSlasher {
 		// Verify this the first attestation received for the participating validator for the slot.
@@ -115,6 +100,8 @@ func (s *Service) validateCommitteeIndexBeaconAttestation(ctx context.Context, p
 			return pubsub.ValidationReject, errors.New("attestation data references bad block root")
 		}
 	}
+
+	var validationRes pubsub.ValidationResult
 
 	// Verify the block being voted and the processed state is in beaconDB and the block has passed validation if it's in the beaconDB.
 	blockRoot := bytesutil.ToBytes32(data.BeaconBlockRoot)
@@ -159,7 +146,23 @@ func (s *Service) validateCommitteeIndexBeaconAttestation(ctx context.Context, p
 		return validationRes, err
 	}
 
-	_, validationRes, err = s.validateUnaggregatedAttWithState(ctx, att, preState)
+	committee, err := helpers.BeaconCommitteeFromState(ctx, preState, att.GetData().Slot, committeeIndex)
+	if err != nil {
+		tracing.AnnotateError(span, err)
+		return pubsub.ValidationIgnore, err
+	}
+
+	attesterIndex := primitives.ValidatorIndex(0)
+	if att.Version() >= version.Electra {
+		singleAtt, ok := att.(*eth.SingleAttestation)
+		if !ok {
+			return pubsub.ValidationIgnore, fmt.Errorf("attestation has wrong type (expected %T, got %T)", &eth.SingleAttestation{}, att)
+		}
+		attesterIndex = singleAtt.AttesterIndex
+		att = singleAtt.ToAttestationElectra(committee)
+	}
+
+	validationRes, err = s.validateUnaggregatedAttWithState(ctx, att, attesterIndex, preState, committee)
 	if validationRes != pubsub.ValidationAccept {
 		return validationRes, err
 	}
@@ -192,6 +195,15 @@ func (s *Service) validateCommitteeIndexBeaconAttestation(ctx context.Context, p
 			s.cfg.slasherAttestationsFeed.Send(&types.WrappedIndexedAtt{IndexedAtt: indexedAtt})
 		}()
 	}
+
+	// Broadcast the unaggregated attestation on a feed to notify other services in the beacon node
+	// of a received unaggregated attestation.
+	s.cfg.attestationNotifier.OperationFeed().Send(&feed.Event{
+		Type: operation.UnaggregatedAttReceived,
+		Data: &operation.UnAggregatedAttReceivedData{
+			Attestation: att,
+		},
+	})
 
 	s.setSeenCommitteeIndicesSlot(data.Slot, committeeIndex, att.GetAggregationBits())
 
@@ -249,36 +261,63 @@ func (s *Service) validateCommitteeIndex(ctx context.Context, a eth.Att) (primit
 
 // This validates beacon unaggregated attestation using the given state, the validation consists of bitfield length and count consistency
 // and signature verification.
-func (s *Service) validateUnaggregatedAttWithState(ctx context.Context, a eth.Att, bs state.ReadOnlyBeaconState) ([]primitives.ValidatorIndex, pubsub.ValidationResult, error) {
+func (s *Service) validateUnaggregatedAttWithState(ctx context.Context, a eth.Att, attestingIndex primitives.ValidatorIndex, bs state.ReadOnlyBeaconState, committee []primitives.ValidatorIndex) (pubsub.ValidationResult, error) {
 	ctx, span := trace.StartSpan(ctx, "sync.validateUnaggregatedAttWithState")
 	defer span.End()
 
-	committeeIndex := a.GetCommitteeIndex()
-
-	committee, result, err := s.validateBitLength(ctx, bs, a.GetData().Slot, committeeIndex, a.GetAggregationBits())
-	if result != pubsub.ValidationAccept {
-		return nil, result, err
-	}
-
-	// Attestation must be unaggregated and the bit index must exist in the range of committee indices.
-	// Note: The Ethereum Beacon chain spec suggests (len(get_attesting_indices(state, attestation.data, attestation.aggregation_bits)) == 1)
-	// however this validation can be achieved without use of get_attesting_indices which is an O(n) lookup.
-	if a.GetAggregationBits().Count() != 1 || a.GetAggregationBits().BitIndices()[0] >= len(committee) {
-		return nil, pubsub.ValidationReject, errors.New("attestation bitfield is invalid")
+	// TODO: add test
+	// - [REJECT] attestation.data.index == 0
+	if a.Version() >= version.Electra {
+		if a.GetData().GetCommitteeIndex() != 0 {
+			log.Info("a.GetData().GetCommitteeIndex() != 0")
+			return pubsub.ValidationReject, errors.New("attestation data's committee index must be 0")
+		}
+		result, err := validateAttestingIndex(ctx, attestingIndex, committee)
+		if result != pubsub.ValidationAccept {
+			log.Info("validateAttestingIndex")
+			return result, err
+		}
+	} else {
+		// Verify number of aggregation bits matches the committee size.
+		if err := helpers.VerifyBitfieldLength(a.GetAggregationBits(), uint64(len(committee))); err != nil {
+			return pubsub.ValidationReject, err
+		}
+		// Attestation must be unaggregated and the bit index must exist in the range of committee indices.
+		// Note: The Ethereum Beacon chain spec suggests (len(get_attesting_indices(state, attestation.data, attestation.aggregation_bits)) == 1)
+		// however this validation can be achieved without use of get_attesting_indices which is an O(n) lookup.
+		if a.GetAggregationBits().Count() != 1 || a.GetAggregationBits().BitIndices()[0] >= len(committee) {
+			return pubsub.ValidationReject, errors.New("attestation bitfield is invalid")
+		}
 	}
 
 	set, err := blocks.AttestationSignatureBatch(ctx, bs, []eth.Att{a})
 	if err != nil {
 		tracing.AnnotateError(span, err)
 		attBadSignatureBatchCount.Inc()
-		return nil, pubsub.ValidationReject, err
+		return pubsub.ValidationReject, err
 	}
-	result, err = s.validateWithBatchVerifier(ctx, "attestation", set)
-	if result != pubsub.ValidationAccept {
-		tracing.AnnotateError(span, err)
-		return nil, result, err
+
+	return s.validateWithBatchVerifier(ctx, "attestation", set)
+}
+
+func validateAttestingIndex(ctx context.Context, attestingIndex primitives.ValidatorIndex, committee []primitives.ValidatorIndex) (pubsub.ValidationResult, error) {
+	_, span := trace.StartSpan(ctx, "sync.validateAttestingIndex")
+	defer span.End()
+
+	// _[REJECT]_ The attester is a member of the committee -- i.e.
+	//  `attestation.attester_index in get_beacon_committee(state, attestation.data.slot, index)`.
+	inCommittee := false
+	for _, ix := range committee {
+		if attestingIndex == ix {
+			inCommittee = true
+			break
+		}
 	}
-	return committee, pubsub.ValidationAccept, nil
+	if !inCommittee {
+		return pubsub.ValidationReject, errors.New("attester is not a member of the committee")
+	}
+
+	return pubsub.ValidationAccept, nil
 }
 
 func (s *Service) validateBitLength(

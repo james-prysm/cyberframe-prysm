@@ -131,19 +131,26 @@ func (s *Service) processAttestations(ctx context.Context, attestations []ethpb.
 				log.WithError(err).Debug("Could not retrieve attestation prestate")
 				continue
 			}
-
-			committee, valid, err := s.validateUnaggregatedAttWithState(ctx, aggregate, preState)
+			committee, err := helpers.BeaconCommitteeFromState(ctx, preState, aggregate.GetData().Slot, aggregate.GetCommitteeIndex())
 			if err != nil {
-				log.WithError(err).Debug("Pending unaggregated attestation failed validation")
+				log.WithError(err).Debug("Could not retrieve committee from state")
 				continue
 			}
+			attesterIndex := primitives.ValidatorIndex(0)
 			if aggregate.Version() >= version.Electra {
+				var ok bool
 				singleAtt, ok := aggregate.(*ethpb.SingleAttestation)
 				if !ok {
 					log.Debugf("Attestation has wrong type (expected %T, got %T)", &ethpb.SingleAttestation{}, aggregate)
 					continue
 				}
+				attesterIndex = singleAtt.GetAttesterIndex()
 				aggregate = singleAtt.ToAttestationElectra(committee)
+			}
+			valid, err := s.validateUnaggregatedAttWithState(ctx, aggregate, attesterIndex, preState, committee)
+			if err != nil {
+				log.WithError(err).Debug("Pending unaggregated attestation failed validation")
+				continue
 			}
 			if valid == pubsub.ValidationAccept {
 				if err := s.cfg.attPool.SaveUnaggregatedAttestation(aggregate); err != nil {

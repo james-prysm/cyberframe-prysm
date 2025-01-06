@@ -384,7 +384,7 @@ func (p *Builder) handleHeaderRequest(w http.ResponseWriter, req *http.Request) 
 	}
 	d, err := signing.ComputeDomain(params.BeaconConfig().DomainApplicationBuilder,
 		nil, /* fork version */
-		nil /* genesis val root */)
+		nil  /* genesis val root */)
 	if err != nil {
 		p.cfg.logger.WithError(err).Error("Could not compute the domain")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -461,7 +461,7 @@ func (p *Builder) handleHeaderRequestCapella(w http.ResponseWriter) {
 	}
 	d, err := signing.ComputeDomain(params.BeaconConfig().DomainApplicationBuilder,
 		nil, /* fork version */
-		nil /* genesis val root */)
+		nil  /* genesis val root */)
 	if err != nil {
 		p.cfg.logger.WithError(err).Error("Could not compute the domain")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -546,7 +546,7 @@ func (p *Builder) handleHeaderRequestDeneb(w http.ResponseWriter) {
 	}
 	d, err := signing.ComputeDomain(params.BeaconConfig().DomainApplicationBuilder,
 		nil, /* fork version */
-		nil /* genesis val root */)
+		nil  /* genesis val root */)
 	if err != nil {
 		p.cfg.logger.WithError(err).Error("Could not compute the domain")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -757,7 +757,8 @@ func modifyExecutionPayload(execPayload engine.ExecutableData, fees *big.Int, pr
 	if err != nil {
 		return &engine.ExecutionPayloadEnvelope{}, err
 	}
-	return engine.BlockToExecutableData(modifiedBlock, fees, nil /*blobs*/), nil
+	// TODO: update to include requests for electra
+	return engine.BlockToExecutableData(modifiedBlock, fees, nil /*blobs*/, nil /*requests*/), nil
 }
 
 // This modifies the provided payload to imprint the builder's extra data

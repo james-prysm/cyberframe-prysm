@@ -649,39 +649,7 @@ func (s *PremineGenesisConfig) setExecutionPayload(g state.BeaconState) error {
 		if err != nil {
 			return err
 		}
-		ed, err = blocks.WrappedExecutionPayloadHeaderCapella(eph)
-		if err != nil {
-			return err
-		}
-	case version.Deneb:
-		payload := &enginev1.ExecutionPayloadDeneb{
-			ParentHash:    gb.ParentHash().Bytes(),
-			FeeRecipient:  gb.Coinbase().Bytes(),
-			StateRoot:     gb.Root().Bytes(),
-			ReceiptsRoot:  gb.ReceiptHash().Bytes(),
-			LogsBloom:     gb.Bloom().Bytes(),
-			PrevRandao:    params.BeaconConfig().ZeroHash[:],
-			BlockNumber:   gb.NumberU64(),
-			GasLimit:      gb.GasLimit(),
-			GasUsed:       gb.GasUsed(),
-			Timestamp:     gb.Time(),
-			ExtraData:     gb.Extra(),
-			BaseFeePerGas: bytesutil.PadTo(bytesutil.ReverseByteOrder(gb.BaseFee().Bytes()), fieldparams.RootLength),
-			BlockHash:     gb.Hash().Bytes(),
-			Transactions:  make([][]byte, 0),
-			Withdrawals:   make([]*enginev1.Withdrawal, 0),
-			ExcessBlobGas: *gb.ExcessBlobGas(),
-			BlobGasUsed:   *gb.BlobGasUsed(),
-		}
-		wep, err := blocks.WrappedExecutionPayloadDeneb(payload)
-		if err != nil {
-			return err
-		}
-		eph, err := blocks.PayloadToHeaderDeneb(wep)
-		if err != nil {
-			return err
-		}
-		ed, err = blocks.WrappedExecutionPayloadHeaderDeneb(eph)
+		ed, err := blocks.WrappedExecutionPayloadHeaderCapella(eph)
 		if err != nil {
 			return err
 		}

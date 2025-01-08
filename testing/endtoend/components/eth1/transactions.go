@@ -278,6 +278,7 @@ func RandomBlobTx(rpc *rpc.Client, f *filler.Filler, sender common.Address, nonc
 		})
 
 		// TODO: replace call with al, err := txfuzz.CreateAccessList(rpc, tx, sender) when txfuzz is fixed in new release
+		// an error occurs mentioning error="CreateAccessList: both gasPrice and (maxFeePerGas or maxPriorityFeePerGas) specified"
 		msg := ethereum.CallMsg{
 			From:       sender,
 			To:         tx.To(),

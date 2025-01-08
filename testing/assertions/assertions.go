@@ -138,8 +138,7 @@ func StringContains(loggerFn assertionLoggerFn, expected, actual string, flag bo
 // NoError asserts that error is nil.
 func NoError(loggerFn assertionLoggerFn, err error, msg ...interface{}) {
 	// reflect.ValueOf is needed for nil instances of custom types implementing Error
-	v := reflect.ValueOf(err)
-	if err != nil && !(v.Kind() == reflect.Ptr && v.IsNil()) {
+	if err != nil && !reflect.ValueOf(err).IsNil() {
 		errMsg := parseMsg("Unexpected error", msg...)
 		_, file, line, _ := runtime.Caller(2)
 		loggerFn("%s:%d %s: %v", filepath.Base(file), line, errMsg, err)

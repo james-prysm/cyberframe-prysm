@@ -38,8 +38,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Update our `go-libp2p-pubsub` dependency.
 - Re-organize the content of files to ease the creation of a new fork boilerplate.
 - Fixed Metadata errors for peers connected via QUIC.
-- updated geth to 1.14 ~
-- e2e tests start from capella
+- Updated geth to 1.14 ~
+- E2e tests start from capella
 
 ### Deprecated
 
@@ -48,6 +48,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 - Cleanup ProcessSlashings method to remove unnecessary argument.
 - Remove `/proto/eth/v2` directory. [PR](https://github.com/prysmaticlabs/prysm/pull/14765)
+- Remove `/memsize/` pprof endpoint as it will no longer be supported in go 1.23, geth also removed in https://github.com/ethereum/go-ethereum/commit/e4675771eda550e7eeb63a8884816982c1980644
 
 ### Fixed
 

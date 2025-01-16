@@ -69,6 +69,9 @@ func WithGasLimit() SettingsLoaderOption {
 				log.Warnf("Gas limit was intentionally set to 0, this will be replaced with the default gas limit of %d", params.BeaconConfig().DefaultBuilderGasLimit)
 			}
 			rgl := reviewGasLimit(validator.Uint64(gl))
+			if &rgl != nil {
+				log.Infof("Using a global gas limit of %d if builder is enabled", rgl)
+			}
 			psl.options.gasLimit = &rgl
 		}
 		return nil
@@ -247,6 +250,10 @@ func (psl *settingsLoader) processProposerSettings(loadedSettings, dbSettings *v
 
 	// process any builder overrides on defaults
 	if newSettings.DefaultConfig != nil {
+		if newSettings.DefaultConfig.Builder != nil && newSettings.DefaultConfig.Builder.Enabled && newSettings.DefaultConfig.Builder.GasLimit == 0 && gasLimitOnly == nil {
+			log.Warnf("builder was enabled but no gas limit was specified so the global default of %d is used. Add a gas_limit field or use the --%s flag to lower the log level.",
+				params.BeaconConfig().DefaultBuilderGasLimit, flags.BuilderGasLimitFlag.Name)
+		}
 		newSettings.DefaultConfig.Builder = processBuilderConfig(newSettings.DefaultConfig.Builder, builderConfig, gasLimitOnly)
 	}
 

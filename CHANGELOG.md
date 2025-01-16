@@ -4,53 +4,6 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [Unreleased](https://github.com/prysmaticlabs/prysm/compare/v5.2.0...HEAD)
-
-### Added
-
-- Added proper gas limit check for header from the builder.
-- Added an error field to log `Finished building block`.
-- Implemented a new `EmptyExecutionPayloadHeader` function.
-- `Finished building block`: Display error only if not nil.
-- Added support to update target and max blob count to different values per hard fork config.
-- Log before blob filesystem cache warm-up.
-- New design for the attestation pool. [PR](https://github.com/prysmaticlabs/prysm/pull/14324)
-- Add field param placeholder for Electra blob target and max to pass spec tests.
-- Add EIP-7691: Blob throughput increase.
-- SSZ files generation: Remove the `// Hash: ...` header.
-
-### Changed
-
-- Process light client finality updates only for new finalized epochs instead of doing it for every block.
-- Refactor subnets subscriptions.
-- Refactor RPC handlers subscriptions.
-- Go deps upgrade, from `ioutil` to `io`
-- Move successfully registered validator(s) on builder log to debug.
-- Update some test files to use `crypto/rand` instead of `math/rand`
-- Enforce Compound prefix (0x02) for target when processing pending consolidation request.
-- Limit consolidating by validator's effective balance.
-- Use 16-bit random value for proposer and sync committee selection filter.
-- Re-organize the content of the `*.proto` files (No functional change).
-- Updated Electra spec definition for `process_epoch`.
-- Update our `go-libp2p-pubsub` dependency.
-
-### Deprecated
-
-
-### Removed
-
-- Cleanup ProcessSlashings method to remove unnecessary argument.
-- Remove `/proto/eth/v2` directory. [PR](https://github.com/prysmaticlabs/prysm/pull/14765)
-
-### Fixed
-
-- Added check to prevent nil pointer deference or out of bounds array access when validating the BLSToExecutionChange on an impossibly nil validator.
-- EIP-7691: Ensure new blobs subnets are subscribed on epoch in advance.
-
-### Security
-
-- go version upgrade to 1.22.10 for CVE CVE-2024-34156
-
 ## [v5.2.0](https://github.com/prysmaticlabs/prysm/compare/v5.1.2...v5.2.0)
 
 Updating to this release is highly recommended, especially for users running v5.1.1 or v5.1.2.
@@ -2574,7 +2527,7 @@ There are two known issues with this release:
 - Bellatrix support. See [kiln testnet instructions](https://hackmd.io/OqIoTiQvS9KOIataIFksBQ?view)
 - Weak subjectivity sync / checkpoint sync. This is an experimental feature and may have unintended side effects for
   certain operators serving historical data. See
-  the [documentation](https://docs.prylabs.network/docs/next/prysm-usage/checkpoint-sync) for more details.
+  the [documentation](https://docs.prylabs.network/docs/prysm-usage/checkpoint-sync) for more details.
 - A faster build of blst for beacon chain on linux amd64. Use the environment variable `USE_PRYSM_MODERN=true` with
   prysm.sh, use the "modern" binary, or bazel build with `--define=blst_modern=true`.
 - Vectorized sha256. This may have performance improvements with use of the new flag `--enable-vectorized-htr`.

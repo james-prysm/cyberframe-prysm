@@ -197,24 +197,7 @@ func (s *Service) checkDoubleVotes(
 			var slashing ethpb.AttSlashing
 
 			// Both attestations should have the same type. If not, we convert both to Electra attestations.
-			if existingAttWrapper.IndexedAttestation.Version() != incomingAttWrapper.IndexedAttestation.Version() {
-				existingAttWrapper = &slashertypes.IndexedAttestationWrapper{
-					IndexedAttestation: &ethpb.IndexedAttestationElectra{
-						AttestingIndices: existingAttWrapper.IndexedAttestation.GetAttestingIndices(),
-						Data:             existingAttWrapper.IndexedAttestation.GetData(),
-						Signature:        existingAttWrapper.IndexedAttestation.GetSignature(),
-					},
-					DataRoot: existingAttWrapper.DataRoot,
-				}
-				incomingAttWrapper = &slashertypes.IndexedAttestationWrapper{
-					IndexedAttestation: &ethpb.IndexedAttestationElectra{
-						AttestingIndices: incomingAttWrapper.IndexedAttestation.GetAttestingIndices(),
-						Data:             incomingAttWrapper.IndexedAttestation.GetData(),
-						Signature:        incomingAttWrapper.IndexedAttestation.GetSignature(),
-					},
-					DataRoot: incomingAttWrapper.DataRoot,
-				}
-			}
+			unifyAttWrapperVersion(existingAttWrapper, incomingAttWrapper)
 
 			postElectra := existingAttWrapper.IndexedAttestation.Version() >= version.Electra
 			if postElectra {
@@ -302,24 +285,7 @@ func (s *Service) checkDoubleVotes(
 		var slashing ethpb.AttSlashing
 
 		// Both attestations should have the same type. If not, we convert both to Electra attestations.
-		if wrapper_1.IndexedAttestation.Version() != wrapper_2.IndexedAttestation.Version() {
-			wrapper_1 = &slashertypes.IndexedAttestationWrapper{
-				IndexedAttestation: &ethpb.IndexedAttestationElectra{
-					AttestingIndices: wrapper_1.IndexedAttestation.GetAttestingIndices(),
-					Data:             wrapper_1.IndexedAttestation.GetData(),
-					Signature:        wrapper_1.IndexedAttestation.GetSignature(),
-				},
-				DataRoot: wrapper_1.DataRoot,
-			}
-			wrapper_2 = &slashertypes.IndexedAttestationWrapper{
-				IndexedAttestation: &ethpb.IndexedAttestationElectra{
-					AttestingIndices: wrapper_2.IndexedAttestation.GetAttestingIndices(),
-					Data:             wrapper_2.IndexedAttestation.GetData(),
-					Signature:        wrapper_2.IndexedAttestation.GetSignature(),
-				},
-				DataRoot: wrapper_2.DataRoot,
-			}
-		}
+		unifyAttWrapperVersion(wrapper_1, wrapper_2)
 
 		postElectra := wrapper_1.IndexedAttestation.Version() >= version.Electra
 		if postElectra {

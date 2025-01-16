@@ -1348,6 +1348,12 @@ def prysm_deps():
         version = "v1.9.5",
     )
     go_repository(
+        name = "com_github_gtank_ristretto255",
+        importpath = "github.com/gtank/ristretto255",
+        sum = "h1:JEqUCPA1NvLq5DwYtuzigd7ss8fwbYay9fi4/5uMzcc=",
+        version = "v0.1.2",
+    )
+    go_repository(
         name = "com_github_guptarohit_asciigraph",
         importpath = "github.com/guptarohit/asciigraph",
         sum = "h1:ccFnUF8xYIOUPPY3tmdvRyHqmn1MYI9iv1pLKX+/ZkQ=",

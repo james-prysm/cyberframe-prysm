@@ -1,7 +1,6 @@
 package peerdas
 
 import (
-	"context"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -11,7 +10,6 @@ import (
 
 	fieldparams "github.com/prysmaticlabs/prysm/v5/config/fieldparams"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
@@ -212,22 +210,15 @@ func DataColumnSidecars(signedBlock interfaces.ReadOnlySignedBeaconBlock, blobs 
 	// Compute cells and proofs.
 	cellsAndProofs := make([]kzg.CellsAndProofs, blobsCount)
 
-	eg, _ := errgroup.WithContext(context.Background())
 	for i := range blobs {
 		blobIndex := i
-		eg.Go(func() error {
-			blob := &blobs[blobIndex]
-			blobCellsAndProofs, err := kzg.ComputeCellsAndKZGProofs(blob)
-			if err != nil {
-				return errors.Wrap(err, "compute cells and KZG proofs")
-			}
+		blob := &blobs[blobIndex]
+		blobCellsAndProofs, err := kzg.ComputeCellsAndKZGProofs(blob)
+		if err != nil {
+			return nil, errors.Wrap(err, "compute cells and KZG proofs")
+		}
 
-			cellsAndProofs[blobIndex] = blobCellsAndProofs
-			return nil
-		})
-	}
-	if err := eg.Wait(); err != nil {
-		return nil, err
+		cellsAndProofs[blobIndex] = blobCellsAndProofs
 	}
 
 	// Get the column sidecars.
@@ -612,7 +603,6 @@ func RecoverCellsAndProofs(
 	dataColumnSideCars []*ethpb.DataColumnSidecar,
 	blockRoot [fieldparams.RootLength]byte,
 ) ([]kzg.CellsAndProofs, error) {
-	var wg errgroup.Group
 
 	dataColumnSideCarsCount := len(dataColumnSideCars)
 
@@ -635,42 +625,35 @@ func RecoverCellsAndProofs(
 
 	for blobIndex := range blobCount {
 		bIndex := blobIndex
-		wg.Go(func() error {
-			start := time.Now()
+		start := time.Now()
 
-			cellsIndices := make([]uint64, 0, dataColumnSideCarsCount)
-			cells := make([]kzg.Cell, 0, dataColumnSideCarsCount)
+		cellsIndices := make([]uint64, 0, dataColumnSideCarsCount)
+		cells := make([]kzg.Cell, 0, dataColumnSideCarsCount)
 
-			for _, sidecar := range dataColumnSideCars {
-				// Build the cell indices.
-				cellsIndices = append(cellsIndices, sidecar.ColumnIndex)
+		for _, sidecar := range dataColumnSideCars {
+			// Build the cell indices.
+			cellsIndices = append(cellsIndices, sidecar.ColumnIndex)
 
-				// Get the cell.
-				column := sidecar.DataColumn
-				cell := column[bIndex]
+			// Get the cell.
+			column := sidecar.DataColumn
+			cell := column[bIndex]
 
-				cells = append(cells, kzg.Cell(cell))
-			}
+			cells = append(cells, kzg.Cell(cell))
+		}
 
-			// Recover the cells and proofs for the corresponding blob
-			cellsAndProofs, err := kzg.RecoverCellsAndKZGProofs(cellsIndices, cells)
+		// Recover the cells and proofs for the corresponding blob
+		cellsAndProofs, err := kzg.RecoverCellsAndKZGProofs(cellsIndices, cells)
 
-			if err != nil {
-				return errors.Wrapf(err, "recover cells and KZG proofs for blob %d", bIndex)
-			}
+		if err != nil {
+			return nil, errors.Wrapf(err, "recover cells and KZG proofs for blob %d", bIndex)
+		}
 
-			recoveredCellsAndProofs[bIndex] = cellsAndProofs
-			log.WithFields(logrus.Fields{
-				"elapsed": time.Since(start),
-				"index":   bIndex,
-				"root":    fmt.Sprintf("%x", blockRoot),
-			}).Debug("Recovered cells and proofs")
-			return nil
-		})
-	}
-
-	if err := wg.Wait(); err != nil {
-		return nil, err
+		recoveredCellsAndProofs[bIndex] = cellsAndProofs
+		log.WithFields(logrus.Fields{
+			"elapsed": time.Since(start),
+			"index":   bIndex,
+			"root":    fmt.Sprintf("%x", blockRoot),
+		}).Debug("Recovered cells and proofs")
 	}
 
 	return recoveredCellsAndProofs, nil

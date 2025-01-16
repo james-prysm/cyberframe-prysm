@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
@@ -69,33 +68,66 @@ func GenerateCommitmentAndProof(blob *kzg.Blob) (*kzg.Commitment, *kzg.Proof, er
 }
 
 func TestVerifyDataColumnSidecarKZGProofs(t *testing.T) {
-	dbBlock := util.NewBeaconBlockDeneb()
+	const blobCount int64 = 5
+
 	require.NoError(t, kzg.Start())
 
-	var (
-		comms [][]byte
-		blobs []kzg.Blob
-	)
-	for i := int64(0); i < 6; i++ {
-		blob := GetRandBlob(i)
-		commitment, _, err := GenerateCommitmentAndProof(&blob)
-		require.NoError(t, err)
-		comms = append(comms, commitment[:])
-		blobs = append(blobs, blob)
+	testCases := []struct {
+		name     string
+		altered  bool
+		expected bool
+	}{{
+		name:     "all blobs are valid",
+		altered:  false,
+		expected: true,
+	},
+		{
+			name:     "one blob is altered",
+			altered:  true,
+			expected: false,
+		},
 	}
 
-	dbBlock.Block.Body.BlobKzgCommitments = comms
-	sBlock, err := blocks.NewSignedBeaconBlock(dbBlock)
-	require.NoError(t, err)
-	sCars, err := peerdas.DataColumnSidecars(sBlock, blobs)
-	require.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dbBlock := util.NewBeaconBlockDeneb()
 
-	for i, sidecar := range sCars {
-		roCol, err := blocks.NewRODataColumn(sidecar)
-		require.NoError(t, err)
-		verified, err := peerdas.VerifyDataColumnsSidecarKZGProofs([]blocks.RODataColumn{roCol})
-		require.NoError(t, err)
-		require.Equal(t, true, verified, fmt.Sprintf("sidecar %d failed", i))
+			var (
+				comms [][]byte
+				blobs []kzg.Blob
+			)
+
+			for i := range blobCount {
+				blob := GetRandBlob(i)
+				commitment, _, err := GenerateCommitmentAndProof(&blob)
+				require.NoError(t, err)
+				comms = append(comms, commitment[:])
+				blobs = append(blobs, blob)
+			}
+
+			if tc.altered {
+				// Alter the first blob.
+				blobs[0][0]++
+			}
+
+			dbBlock.Block.Body.BlobKzgCommitments = comms
+			sBlock, err := blocks.NewSignedBeaconBlock(dbBlock)
+			require.NoError(t, err)
+			sCars, err := peerdas.DataColumnSidecars(sBlock, blobs)
+			require.NoError(t, err)
+
+			roCols := make([]blocks.RODataColumn, 0, len(sCars))
+			for _, sidecar := range sCars {
+				roCol, err := blocks.NewRODataColumn(sidecar)
+				require.NoError(t, err)
+
+				roCols = append(roCols, roCol)
+			}
+
+			actual, err := peerdas.VerifyDataColumnsSidecarKZGProofs(roCols)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
+		})
 	}
 }
 

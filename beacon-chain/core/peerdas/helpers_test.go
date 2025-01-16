@@ -70,7 +70,9 @@ func GenerateCommitmentAndProof(blob *kzg.Blob) (*kzg.Commitment, *kzg.Proof, er
 func TestVerifyDataColumnSidecarKZGProofs(t *testing.T) {
 	const blobCount int64 = 5
 
-	require.NoError(t, kzg.Start())
+	// Start the trusted setup.
+	err := kzg.Start()
+	require.NoError(t, err)
 
 	testCases := []struct {
 		name     string
@@ -92,10 +94,8 @@ func TestVerifyDataColumnSidecarKZGProofs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dbBlock := util.NewBeaconBlockDeneb()
 
-			var (
-				comms [][]byte
-				blobs []kzg.Blob
-			)
+			comms := make([][]byte, 0, blobCount)
+			blobs := make([]kzg.Blob, 0, blobCount)
 
 			for i := range blobCount {
 				blob := GetRandBlob(i)
@@ -559,5 +559,154 @@ func TestReconstructionRoundTrip(t *testing.T) {
 			actual := reconstructedDataColumnsSideCars
 			require.DeepSSZEqual(t, expected, actual)
 		})
+	}
+}
+
+func BenchmarkDataColumnSidecars(b *testing.B) {
+	b.StopTimer()
+
+	const blobCount int64 = 12
+	numberOfColumns := params.BeaconConfig().NumberOfColumns
+
+	// Start the trusted setup.
+	err := kzg.Start()
+	require.NoError(b, err)
+
+	for range b.N {
+		// Create a protobuf signed beacon block.
+		signedBeaconBlockPb := util.NewBeaconBlockDeneb()
+
+		// Generate random blobs and their corresponding commitments and proofs.
+		blobs := make([]kzg.Blob, 0, blobCount)
+
+		for blobIndex := range blobCount {
+			// Create a random blob.
+			blob := GetRandBlob(blobIndex)
+			blobs = append(blobs, blob)
+		}
+
+		blobKzgCommitments := make([]*kzg.Commitment, 0, blobCount)
+
+		// Set the commitments into the block.
+		blobZkgCommitmentsBytes := make([][]byte, 0, blobCount)
+		for _, blobKZGCommitment := range blobKzgCommitments {
+			blobZkgCommitmentsBytes = append(blobZkgCommitmentsBytes, blobKZGCommitment[:])
+		}
+
+		signedBeaconBlockPb.Block.Body.BlobKzgCommitments = blobZkgCommitmentsBytes
+
+		// Create a signed beacon block from the protobuf.
+		signedBeaconBlock, err := blocks.NewSignedBeaconBlock(signedBeaconBlockPb)
+		require.NoError(b, err)
+
+		b.StartTimer()
+		a, err := peerdas.DataColumnSidecars(signedBeaconBlock, blobs)
+		b.StopTimer()
+
+		// Safety checks. The correctness of the output is checked in dedicated tests, not in this benchmark.
+		require.Equal(b, numberOfColumns, uint64(len(a)))
+		require.NoError(b, err)
+	}
+}
+
+func BenchmarkVerifyDataColumnSidecarKZGProofs(b *testing.B) {
+	b.StopTimer()
+
+	const blobCount int64 = 12
+
+	// Start the trusted setup.
+	err := kzg.Start()
+	require.NoError(b, err)
+
+	for range b.N {
+		comms := make([][]byte, 0, blobCount)
+		blobs := make([]kzg.Blob, 0, blobCount)
+
+		dbBlock := util.NewBeaconBlockDeneb()
+
+		for i := range blobCount {
+			blob := GetRandBlob(i)
+			commitment, _, err := GenerateCommitmentAndProof(&blob)
+			require.NoError(b, err)
+			comms = append(comms, commitment[:])
+			blobs = append(blobs, blob)
+		}
+
+		dbBlock.Block.Body.BlobKzgCommitments = comms
+		sBlock, err := blocks.NewSignedBeaconBlock(dbBlock)
+		require.NoError(b, err)
+		sCars, err := peerdas.DataColumnSidecars(sBlock, blobs)
+		require.NoError(b, err)
+
+		roCols := make([]blocks.RODataColumn, 0, len(sCars))
+		for _, sidecar := range sCars {
+			roCol, err := blocks.NewRODataColumn(sidecar)
+			require.NoError(b, err)
+
+			roCols = append(roCols, roCol)
+		}
+
+		b.StartTimer()
+		actual, err := peerdas.VerifyDataColumnsSidecarKZGProofs(roCols)
+		b.StopTimer()
+
+		require.NoError(b, err)
+		require.Equal(b, true, actual)
+	}
+}
+
+// BenchmarkRecoverCellsAndProofs benchmarks the performance of the RecoverCellsAndProofs function for exactly half of the columns.
+func BenchmarkRecoverCellsAndProofs(b *testing.B) {
+	b.StopTimer()
+	const blobCount int64 = 12
+
+	params.SetupTestConfigCleanup(b)
+
+	var blockRoot [fieldparams.RootLength]byte
+
+	// Start the trusted setup.
+	err := kzg.Start()
+	require.NoError(b, err)
+
+	for range b.N {
+		signedBeaconBlockPb := util.NewBeaconBlockDeneb()
+
+		// Generate random blobs and their corresponding commitments.
+		blobsKzgCommitments := make([][]byte, 0, blobCount)
+		blobs := make([]kzg.Blob, 0, blobCount)
+
+		for i := range blobCount {
+			blob := GetRandBlob(i)
+			commitment, _, err := GenerateCommitmentAndProof(&blob)
+			require.NoError(b, err)
+
+			blobsKzgCommitments = append(blobsKzgCommitments, commitment[:])
+			blobs = append(blobs, blob)
+		}
+
+		// Generate a signed beacon block.
+		signedBeaconBlockPb.Block.Body.BlobKzgCommitments = blobsKzgCommitments
+		signedBeaconBlock, err := blocks.NewSignedBeaconBlock(signedBeaconBlockPb)
+		require.NoError(b, err)
+
+		// Convert data columns sidecars from signed block and blobs.
+		dataColumnSidecars, err := peerdas.DataColumnSidecars(signedBeaconBlock, blobs)
+		require.NoError(b, err)
+
+		numberOfColumns := params.BeaconConfig().NumberOfColumns
+		evenDataColumns := make([]*ethpb.DataColumnSidecar, 0, numberOfColumns/2)
+
+		for i, dataColumn := range dataColumnSidecars {
+			if i%2 == 0 {
+				evenDataColumns = append(evenDataColumns, dataColumn)
+			}
+		}
+
+		// Recover cells and proofs from available data columns sidecars.
+		b.StartTimer()
+		_, err = peerdas.RecoverCellsAndProofs(evenDataColumns, blockRoot)
+		b.StopTimer()
+
+		require.NoError(b, err)
 	}
 }

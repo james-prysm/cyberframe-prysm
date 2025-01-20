@@ -22,6 +22,7 @@ var gossipTopicMappings = map[string]func() proto.Message{
 	SyncCommitteeSubnetTopicFormat:            func() proto.Message { return &ethpb.SyncCommitteeMessage{} },
 	BlsToExecutionChangeSubnetTopicFormat:     func() proto.Message { return &ethpb.SignedBLSToExecutionChange{} },
 	BlobSubnetTopicFormat:                     func() proto.Message { return &ethpb.BlobSidecar{} },
+	RLNCTopicFormat:                           func() proto.Message { return &ethpb.BeaconBlockChunk{} },
 }
 
 // GossipTopicMappings is a function to return the assigned data type

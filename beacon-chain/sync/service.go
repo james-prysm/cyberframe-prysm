@@ -37,6 +37,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/startup"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/state/stategen"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/sync/backfill/coverage"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/sync/rlnc"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/verification"
 	lruwrpr "github.com/prysmaticlabs/prysm/v5/cache/lru"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
@@ -164,6 +165,7 @@ type Service struct {
 	newBlobVerifier                  verification.NewBlobVerifier
 	availableBlocker                 coverage.AvailableBlocker
 	ctxMap                           ContextByteVersions
+	blockChunkCache                  *rlnc.BlockChunkCache
 }
 
 // NewService initializes new regular sync service.
@@ -291,6 +293,7 @@ func (s *Service) initCaches() {
 	s.seenAttesterSlashingCache = make(map[uint64]bool)
 	s.seenProposerSlashingCache = lruwrpr.New(seenProposerSlashingSize)
 	s.badBlockCache = lruwrpr.New(badBlockSize)
+	s.blockChunkCache = rlnc.NewBlockChunkCache()
 }
 
 func (s *Service) waitForChainStart() {

@@ -122,23 +122,6 @@ func (v *validator) SubmitAttestation(ctx context.Context, slot primitives.Slot,
 		return
 	}
 
-	var indexInCommittee uint64
-	var found bool
-	for i, vID := range duty.Committee {
-		if vID == duty.ValidatorIndex {
-			indexInCommittee = uint64(i)
-			found = true
-			break
-		}
-	}
-	if !found {
-		log.Errorf("Validator ID %d not found in committee of %v", duty.ValidatorIndex, duty.Committee)
-		if v.emitAccountMetrics {
-			ValidatorAttestFailVec.WithLabelValues(fmtKey).Inc()
-		}
-		return
-	}
-
 	// Send the attestation to the beacon node.
 	if err := v.db.SlashableAttestationCheck(ctx, indexedAtt, pubKey, signingRoot, v.emitAccountMetrics, ValidatorAttestFailVec); err != nil {
 		log.WithError(err).Error("Failed attestation slashing protection check")
@@ -147,8 +130,6 @@ func (v *validator) SubmitAttestation(ctx context.Context, slot primitives.Slot,
 		).Debug("Attempted slashable attestation details")
 		tracing.AnnotateError(span, err)
 		return
-	}
-
 	}
 
 	var aggregationBitfield bitfield.Bitlist

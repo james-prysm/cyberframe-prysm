@@ -3,6 +3,7 @@ package interfaces
 import (
 	field_params "github.com/prysmaticlabs/prysm/v5/config/fieldparams"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/primitives"
+	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 )
 
 // ReadOnlyBeaconBlockChunk is an interface describing the method set of
@@ -15,6 +16,7 @@ type ReadOnlyBeaconBlockChunk interface {
 	ParentRoot() [field_params.RootLength]byte
 	Commitments() [][]byte
 	Signature() [field_params.BLSSignatureLength]byte
+	Header() *ethpb.BeaconBlockChunkHeader
 	HeaderRoot() [field_params.RootLength]byte
 	Data() [][]byte
 	Coefficients() [][]byte

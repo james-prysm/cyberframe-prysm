@@ -213,3 +213,15 @@ func MinEpochsForBlockRequests() primitives.Epoch {
 	return params.BeaconConfig().MinValidatorWithdrawabilityDelay +
 		primitives.Epoch(params.BeaconConfig().ChurnLimitQuotient/2)
 }
+
+func ComputeDepositSnapshotRoot(marshaled []byte) ([32]byte, error) {
+	ds := &v1alpha1.DepositSnapshot{}
+	err := ds.UnmarshalSSZ(marshaled)
+	if err != nil {
+		return [32]byte{}, err
+	}
+	if len(ds.DepositRoot) != 32 {
+		return [32]byte{}, errors.New("invalid deposit root length")
+	}
+	return bytesutil.ToBytes32(ds.DepositRoot), nil
+}

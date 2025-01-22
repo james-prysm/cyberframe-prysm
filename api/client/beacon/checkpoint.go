@@ -26,13 +26,15 @@ var errCheckpointBlockMismatch = errors.New("mismatch between checkpoint sync st
 // OriginData represents the BeaconState and ReadOnlySignedBeaconBlock necessary to start an empty Beacon Node
 // using Checkpoint Sync.
 type OriginData struct {
-	sb []byte
-	bb []byte
-	st state.BeaconState
-	b  interfaces.ReadOnlySignedBeaconBlock
-	vu *detect.VersionedUnmarshaler
-	br [32]byte
-	sr [32]byte
+	sb  []byte
+	bb  []byte
+	dsb []byte // Deposit snapshot serialized bytes
+	st  state.BeaconState
+	b   interfaces.ReadOnlySignedBeaconBlock
+	vu  *detect.VersionedUnmarshaler
+	br  [32]byte
+	sr  [32]byte
+	dr  [32]byte // Deposit snapshot root
 }
 
 // SaveBlock saves the downloaded block to a unique file in the given path.
@@ -49,6 +51,12 @@ func (o *OriginData) SaveState(dir string) (string, error) {
 	return statePath, file.WriteFile(statePath, o.StateBytes())
 }
 
+// SaveDepositSnapshot saves the downloaded deposit snapshot to a unique file in the given path.
+func (o *OriginData) SaveDepositSnapshot(dir string) (string, error) {
+	depositPath := path.Join(dir, fname("deposit_snapshot", o.vu, o.st.Slot(), o.dr))
+	return depositPath, file.WriteFile(depositPath, o.DepositSnapshotBytes())
+}
+
 // StateBytes returns the ssz-encoded bytes of the downloaded BeaconState value.
 func (o *OriginData) StateBytes() []byte {
 	return o.sb
@@ -57,6 +65,11 @@ func (o *OriginData) StateBytes() []byte {
 // BlockBytes returns the ssz-encoded bytes of the downloaded ReadOnlySignedBeaconBlock value.
 func (o *OriginData) BlockBytes() []byte {
 	return o.bb
+}
+
+// DepositSnapshotBytes returns the serialized bytes of the downloaded DepositSnapshot value.
+func (o *OriginData) DepositSnapshotBytes() []byte {
+	return o.dsb
 }
 
 func fname(prefix string, vu *detect.VersionedUnmarshaler, slot primitives.Slot, root [32]byte) string {
@@ -112,20 +125,35 @@ func DownloadFinalizedData(ctx context.Context, client *Client) (*OriginData, er
 		return nil, errors.Wrapf(err, "failed to compute htr for finalized state at slot=%d", s.Slot())
 	}
 
-	log.
-		WithField("blockSlot", b.Block().Slot()).
-		WithField("stateSlot", s.Slot()).
-		WithField("stateRoot", hexutil.Encode(sr[:])).
-		WithField("blockRoot", hexutil.Encode(br[:])).
-		Info("Downloaded checkpoint sync state and block.")
+	// Download deposit snapshot
+	dsb, err := client.GetDepositSnapshot(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "error retrieving deposit snapshot")
+	}
+
+	dr, err := helpers.ComputeDepositSnapshotRoot(dsb)
+	if err != nil {
+		return nil, errors.Wrap(err, "error computing deposit snapshot root")
+	}
+
+	log.WithFields(logrus.Fields{
+		"blockSlot":   b.Block().Slot(),
+		"stateSlot":   s.Slot(),
+		"stateRoot":   hexutil.Encode(sr[:]),
+		"blockRoot":   hexutil.Encode(br[:]),
+		"depositRoot": hexutil.Encode(dr[:]),
+	}).Info("Downloaded checkpoint sync state, block, and deposit snapshot.")
+
 	return &OriginData{
-		st: s,
-		b:  b,
-		sb: sb,
-		bb: bb,
-		vu: vu,
-		br: br,
-		sr: sr,
+		st:  s,
+		b:   b,
+		sb:  sb,
+		bb:  bb,
+		dsb: dsb,
+		vu:  vu,
+		br:  br,
+		sr:  sr,
+		dr:  dr,
 	}, nil
 }
 

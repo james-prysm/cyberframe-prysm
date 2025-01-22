@@ -35,6 +35,7 @@ const (
 	getStatePath             = "/eth/v2/debug/beacon/states"
 	getNodeVersionPath       = "/eth/v1/node/version"
 	changeBLStoExecutionPath = "/eth/v1/beacon/pool/bls_to_execution_changes"
+	getDepositSnapshot       = "/eth/v1/beacon/deposit_snapshot"
 )
 
 // StateOrBlockId represents the block_id / state_id parameters that several of the Eth Beacon API methods accept.
@@ -360,4 +361,13 @@ func (fsr *forkScheduleResponse) OrderedForkSchedule() (forks.OrderedSchedule, e
 	}
 	sort.Sort(ofs)
 	return ofs, nil
+}
+
+// GetDepositSnapshot calls a beacon API endpoint to retrieve the EIP-4881 Deposit Tree Snapshot.
+func (c *Client) GetDepositSnapshot(ctx context.Context) ([]byte, error) {
+	b, err := c.Get(ctx, getDepositSnapshot, client.WithSSZEncoding())
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }

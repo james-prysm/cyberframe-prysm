@@ -13,6 +13,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/encoder"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/sync/rlnc"
+	"github.com/prysmaticlabs/prysm/v5/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/chunks"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/interfaces"
 	"github.com/prysmaticlabs/prysm/v5/monitoring/tracing"
@@ -169,7 +170,21 @@ func (s *Service) reconstructBlockFromChunk(ctx context.Context, chunk interface
 		logrus.WithError(err).Error("Could not decode block data")
 		return
 	}
-	if err := s.beaconBlockSubscriber(ctx, msg); err != nil {
+	// We overwrite the signature in the block to keep it to be the original one in the database
+	// Unfortunately to do this without reflection we make extra copies of the full block. We could switch over the type instead.
+	blk, err := blocks.NewSignedBeaconBlock(msg)
+	if err != nil {
+		logrus.WithError(err).Error("Could not create signed beacon block")
+	}
+	sig := chunk.Signature()
+	blk.SetSignature(sig[:])
+	protoBlock, err := blk.Proto()
+	if err != nil {
+		logrus.WithError(err).Error("Could not convert block to protomessage")
+		return
+	}
+
+	if err := s.beaconBlockSubscriber(ctx, protoBlock); err != nil {
 		logrus.WithError(err).Error("Could not handle p2p pubsub")
 	}
 }

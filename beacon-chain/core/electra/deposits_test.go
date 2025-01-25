@@ -341,7 +341,7 @@ func TestProcessDepositRequests(t *testing.T) {
 	})
 	t.Run("nil request errors", func(t *testing.T) {
 		_, err = electra.ProcessDepositRequests(context.Background(), st, []*enginev1.DepositRequest{nil})
-		require.ErrorContains(t, "nil deposit request", err)
+		require.ErrorContains(t, "execution request is nil", err)
 	})
 
 	vals := st.Validators()

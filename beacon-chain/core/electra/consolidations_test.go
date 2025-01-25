@@ -205,10 +205,12 @@ func TestProcessPendingConsolidations(t *testing.T) {
 
 func TestProcessConsolidationRequests(t *testing.T) {
 	tests := []struct {
-		name     string
-		state    state.BeaconState
-		reqs     []*enginev1.ConsolidationRequest
-		validate func(*testing.T, state.BeaconState)
+		name      string
+		state     state.BeaconState
+		reqs      []*enginev1.ConsolidationRequest
+		validate  func(*testing.T, state.BeaconState)
+		wantErr   bool
+		errString string
 	}{
 		{
 			name: "one valid request",
@@ -400,12 +402,28 @@ func TestProcessConsolidationRequests(t *testing.T) {
 				require.Equal(t, params.BeaconConfig().FarFutureEpoch, src.WithdrawableEpoch, "source validator withdrawable epoch should not be updated")
 			},
 		},
+		{
+			name: "nil consolidation request",
+			state: func() state.BeaconState {
+				st := &eth.BeaconStateElectra{}
+				s, err := state_native.InitializeFromProtoElectra(st)
+				require.NoError(t, err)
+				return s
+			}(),
+			reqs:      []*enginev1.ConsolidationRequest{nil},
+			wantErr:   true,
+			errString: "execution request is nil",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := electra.ProcessConsolidationRequests(context.TODO(), tt.state, tt.reqs)
-			require.NoError(t, err)
+			if tt.wantErr {
+				require.ErrorContains(t, tt.errString, err)
+			} else {
+				require.NoError(t, err)
+			}
 			if tt.validate != nil {
 				tt.validate(t, tt.state)
 			}

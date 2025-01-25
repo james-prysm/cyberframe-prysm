@@ -2,7 +2,6 @@ package electra
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/blocks"
@@ -17,6 +16,8 @@ var (
 	ProcessAttesterSlashings     = blocks.ProcessAttesterSlashings
 	ProcessProposerSlashings     = blocks.ProcessProposerSlashings
 )
+
+var errNilExecutionRequest = errors.New("execution request is nil")
 
 // ProcessOperations
 //
@@ -84,14 +85,20 @@ func ProcessOperations(
 	}
 	st, err = ProcessDepositRequests(ctx, st, requests.Deposits)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not process deposit requests")
+		if errors.Is(err, errNilExecutionRequest) {
+			return nil, errors.Wrap(err, "could not process deposit requests")
+		}
 	}
 	st, err = ProcessWithdrawalRequests(ctx, st, requests.Withdrawals)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not process withdrawal requests")
+		if errors.Is(err, errNilExecutionRequest) {
+			return nil, errors.Wrap(err, "could not process withdrawal requests")
+		}
 	}
 	if err := ProcessConsolidationRequests(ctx, st, requests.Consolidations); err != nil {
-		return nil, fmt.Errorf("could not process consolidation requests: %w", err)
+		if errors.Is(err, errNilExecutionRequest) {
+			return nil, errors.Wrap(err, "could not process consolidation requests")
+		}
 	}
 	return st, nil
 }

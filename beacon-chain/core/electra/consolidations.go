@@ -188,6 +188,9 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 		if ctx.Err() != nil {
 			return fmt.Errorf("cannot process consolidation requests: %w", ctx.Err())
 		}
+		if cr == nil {
+			return errNilExecutionRequest
+		}
 		if IsValidSwitchToCompoundingRequest(st, cr) {
 			srcIdx, ok := st.ValidatorIndexByPubkey(bytesutil.ToBytes48(cr.SourcePubkey))
 			if !ok {
@@ -206,14 +209,16 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 		}
 
 		if npc, err := st.NumPendingConsolidations(); err != nil {
-			return fmt.Errorf("failed to fetch number of pending consolidations: %w", err) // This should never happen.
+			log.WithError(err).Error("failed to fetch number of pending consolidations")
+			continue
 		} else if npc >= pcLimit {
 			return nil
 		}
 
 		activeBal, err := helpers.TotalActiveBalance(st)
 		if err != nil {
-			return err
+			log.WithError(err).Error("failed to fetch total active balance")
+			continue
 		}
 		churnLimit := helpers.ConsolidationChurnLimit(primitives.Gwei(activeBal))
 		if churnLimit <= primitives.Gwei(params.BeaconConfig().MinActivationBalance) {
@@ -231,17 +236,20 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 
 		srcV, err := st.ValidatorAtIndex(srcIdx)
 		if err != nil {
-			return fmt.Errorf("failed to fetch source validator: %w", err) // This should never happen.
+			log.WithError(err).Error("failed to fetch source validator")
+			continue
 		}
 
 		roSrcV, err := state_native.NewValidator(srcV)
 		if err != nil {
-			return err
+			log.WithError(err).Error("failed to create read-only source validator")
+			continue
 		}
 
 		tgtV, err := st.ValidatorAtIndexReadOnly(tgtIdx)
 		if err != nil {
-			return fmt.Errorf("failed to fetch target validator: %w", err) // This should never happen.
+			log.WithError(err).Error("failed to fetch target validator")
+			continue
 		}
 
 		// Verify source withdrawal credentials
@@ -293,11 +301,13 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 		srcV.ExitEpoch = exitEpoch
 		srcV.WithdrawableEpoch = exitEpoch + minValWithdrawDelay
 		if err := st.UpdateValidatorAtIndex(srcIdx, srcV); err != nil {
-			return fmt.Errorf("failed to update validator: %w", err) // This should never happen.
+			log.WithError(err).Error("failed to update source validator")
+			continue
 		}
 
 		if err := st.AppendPendingConsolidation(&eth.PendingConsolidation{SourceIndex: srcIdx, TargetIndex: tgtIdx}); err != nil {
-			return fmt.Errorf("failed to append pending consolidation: %w", err) // This should never happen.
+			log.WithError(err).Error("failed to append pending consolidation")
+			continue
 		}
 	}
 

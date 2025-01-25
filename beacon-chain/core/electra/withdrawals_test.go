@@ -275,6 +275,18 @@ func TestProcessWithdrawRequests(t *testing.T) {
 				logrus.SetLevel(logrus.InfoLevel) // reset
 			},
 		},
+		{
+			name: "nil withdrawals",
+			args: args{
+				st: func() state.BeaconState {
+					preSt := st.Copy()
+					return preSt
+				}(),
+				wrs: []*enginev1.WithdrawalRequest{nil},
+			},
+			wantErr: true,
+			wantFn:  func(t *testing.T, got state.BeaconState) {},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

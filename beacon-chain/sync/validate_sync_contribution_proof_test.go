@@ -208,7 +208,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 			want: pubsub.ValidationIgnore,
 		},
 		{
-			name: "Invalid Subcommittee Index",
+			name: "Invalid Subcommittee ValidatorIndex",
 			svcopts: []Option{
 				WithP2P(mockp2p.NewTestP2P(t)),
 				WithInitialSync(&mockSync.Sync{IsSyncing: false}),

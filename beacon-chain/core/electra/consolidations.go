@@ -207,7 +207,7 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 
 		if npc, err := st.NumPendingConsolidations(); err != nil {
 			return fmt.Errorf("failed to fetch number of pending consolidations: %w", err) // This should never happen.
-		} else if npc >= pcLimit {
+		} else if npc == pcLimit {
 			return nil
 		}
 
@@ -262,7 +262,7 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 		if !helpers.IsActiveValidator(srcV, curEpoch) || !helpers.IsActiveValidatorUsingTrie(tgtV, curEpoch) {
 			continue
 		}
-		// Neither validator are exiting.
+		// Neither validator is exiting.
 		if srcV.ExitEpoch != ffe || tgtV.ExitEpoch() != ffe {
 			continue
 		}

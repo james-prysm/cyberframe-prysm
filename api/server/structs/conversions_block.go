@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v5/api/server"
 	fieldparams "github.com/prysmaticlabs/prysm/v5/config/fieldparams"
+	"github.com/prysmaticlabs/prysm/v5/config/params"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/interfaces"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/primitives"
 	"github.com/prysmaticlabs/prysm/v5/container/slice"
@@ -2703,9 +2704,12 @@ func (b *BeaconBlockElectra) ToConsensus() (*eth.BeaconBlockElectra, error) {
 	}
 
 	if b.Body.ExecutionRequests == nil {
-		return nil, server.NewDecodeError(errors.New("nil execution requests"), "Body.ExequtionRequests")
+		return nil, server.NewDecodeError(errNilValue, "Body.ExecutionRequests")
 	}
 
+	if err = slice.VerifyMaxLength(b.Body.ExecutionRequests.Deposits, params.BeaconConfig().MaxDepositRequestsPerPayload); err != nil {
+		return nil, err
+	}
 	depositRequests := make([]*enginev1.DepositRequest, len(b.Body.ExecutionRequests.Deposits))
 	for i, d := range b.Body.ExecutionRequests.Deposits {
 		depositRequests[i], err = d.ToConsensus()
@@ -2714,6 +2718,9 @@ func (b *BeaconBlockElectra) ToConsensus() (*eth.BeaconBlockElectra, error) {
 		}
 	}
 
+	if err = slice.VerifyMaxLength(b.Body.ExecutionRequests.Withdrawals, params.BeaconConfig().MaxWithdrawalRequestsPerPayload); err != nil {
+		return nil, err
+	}
 	withdrawalRequests := make([]*enginev1.WithdrawalRequest, len(b.Body.ExecutionRequests.Withdrawals))
 	for i, w := range b.Body.ExecutionRequests.Withdrawals {
 		withdrawalRequests[i], err = w.ToConsensus()
@@ -2722,6 +2729,9 @@ func (b *BeaconBlockElectra) ToConsensus() (*eth.BeaconBlockElectra, error) {
 		}
 	}
 
+	if err = slice.VerifyMaxLength(b.Body.ExecutionRequests.Consolidations, params.BeaconConfig().MaxConsolidationsRequestsPerPayload); err != nil {
+		return nil, err
+	}
 	consolidationRequests := make([]*enginev1.ConsolidationRequest, len(b.Body.ExecutionRequests.Consolidations))
 	for i, c := range b.Body.ExecutionRequests.Consolidations {
 		consolidationRequests[i], err = c.ToConsensus()
@@ -3003,8 +3013,13 @@ func (b *BlindedBeaconBlockElectra) ToConsensus() (*eth.BlindedBeaconBlockElectr
 	if err != nil {
 		return nil, server.NewDecodeError(err, "Body.ExecutionPayload.ExcessBlobGas")
 	}
+
 	if b.Body.ExecutionRequests == nil {
-		return nil, server.NewDecodeError(errors.New("nil execution requests"), "Body.ExecutionRequests")
+		return nil, server.NewDecodeError(errNilValue, "Body.ExecutionRequests")
+	}
+
+	if err = slice.VerifyMaxLength(b.Body.ExecutionRequests.Deposits, params.BeaconConfig().MaxDepositRequestsPerPayload); err != nil {
+		return nil, err
 	}
 	depositRequests := make([]*enginev1.DepositRequest, len(b.Body.ExecutionRequests.Deposits))
 	for i, d := range b.Body.ExecutionRequests.Deposits {
@@ -3014,6 +3029,9 @@ func (b *BlindedBeaconBlockElectra) ToConsensus() (*eth.BlindedBeaconBlockElectr
 		}
 	}
 
+	if err = slice.VerifyMaxLength(b.Body.ExecutionRequests.Withdrawals, params.BeaconConfig().MaxWithdrawalRequestsPerPayload); err != nil {
+		return nil, err
+	}
 	withdrawalRequests := make([]*enginev1.WithdrawalRequest, len(b.Body.ExecutionRequests.Withdrawals))
 	for i, w := range b.Body.ExecutionRequests.Withdrawals {
 		withdrawalRequests[i], err = w.ToConsensus()
@@ -3022,6 +3040,9 @@ func (b *BlindedBeaconBlockElectra) ToConsensus() (*eth.BlindedBeaconBlockElectr
 		}
 	}
 
+	if err = slice.VerifyMaxLength(b.Body.ExecutionRequests.Consolidations, params.BeaconConfig().MaxConsolidationsRequestsPerPayload); err != nil {
+		return nil, err
+	}
 	consolidationRequests := make([]*enginev1.ConsolidationRequest, len(b.Body.ExecutionRequests.Consolidations))
 	for i, c := range b.Body.ExecutionRequests.Consolidations {
 		consolidationRequests[i], err = c.ToConsensus()

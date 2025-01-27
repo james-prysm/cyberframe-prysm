@@ -199,7 +199,7 @@ func TestService_ValidateBlsToExecutionChange(t *testing.T) {
 			want: pubsub.ValidationAccept,
 		},
 		{
-			name: "Non-existent Validator Index",
+			name: "Non-existent Validator ValidatorIndex",
 			svcopts: []Option{
 				WithP2P(mockp2p.NewTestP2P(t)),
 				WithInitialSync(&mockSync.Sync{IsSyncing: false}),

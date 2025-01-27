@@ -558,13 +558,13 @@ func ProcessDepositRequests(ctx context.Context, beaconState state.BeaconState, 
 	}
 
 	var err error
-	for _, receipt := range requests {
+	for i, receipt := range requests {
 		beaconState, err = processDepositRequest(beaconState, receipt)
 		if err != nil {
 			if errors.Is(err, errNilExecutionRequest) {
 				return nil, err
 			}
-			log.Errorf("continuing despite failed deposit request: %v", err)
+			log.Errorf("continuing despite failed deposit request index %d: %v", i, err)
 		}
 	}
 

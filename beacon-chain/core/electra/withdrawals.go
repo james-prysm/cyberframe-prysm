@@ -90,7 +90,7 @@ func ProcessWithdrawalRequests(ctx context.Context, st state.BeaconState, wrs []
 	ctx, span := trace.StartSpan(ctx, "electra.ProcessWithdrawalRequests")
 	defer span.End()
 	currentEpoch := slots.ToEpoch(st.Slot())
-	for _, wr := range wrs {
+	for i, wr := range wrs {
 		if wr == nil {
 			return nil, errNilExecutionRequest
 		}
@@ -98,7 +98,7 @@ func ProcessWithdrawalRequests(ctx context.Context, st state.BeaconState, wrs []
 		isFullExitRequest := amount == params.BeaconConfig().FullExitRequestAmount
 		// If partial withdrawal queue is full, only full exits are processed
 		if n, err := st.NumPendingPartialWithdrawals(); err != nil {
-			log.WithError(err).Error("Could not get number of pending partial withdrawals")
+			log.WithError(err).Errorf("Could not get number of pending partial withdrawals at index %d", i)
 			continue
 		} else if n == params.BeaconConfig().PendingPartialWithdrawalsLimit && !isFullExitRequest {
 			// if the PendingPartialWithdrawalsLimit is met, the user would have paid for a partial withdrawal that's not included
@@ -113,7 +113,7 @@ func ProcessWithdrawalRequests(ctx context.Context, st state.BeaconState, wrs []
 		}
 		validator, err := st.ValidatorAtIndexReadOnly(vIdx)
 		if err != nil {
-			log.WithError(err).Error("Could not get validator at index")
+			log.WithError(err).Errorf("Could not get validator at index %d", vIdx)
 			continue
 		}
 		// Verify withdrawal credentials
@@ -153,7 +153,7 @@ func ProcessWithdrawalRequests(ctx context.Context, st state.BeaconState, wrs []
 				var err error
 				st, _, err = validators.InitiateValidatorExit(ctx, st, vIdx, maxExitEpoch, churn)
 				if err != nil {
-					log.WithError(err).Error("Could not initiate validator exit")
+					log.WithError(err).Errorf("Could not initiate validator exit index %d", vIdx)
 					continue
 				}
 			}
@@ -163,7 +163,7 @@ func ProcessWithdrawalRequests(ctx context.Context, st state.BeaconState, wrs []
 		hasSufficientEffectiveBalance := validator.EffectiveBalance() >= params.BeaconConfig().MinActivationBalance
 		vBal, err := st.BalanceAtIndex(vIdx)
 		if err != nil {
-			log.WithError(err).Error("Could not get balance at index")
+			log.WithError(err).Errorf("Could not get balance at index %d", vIdx)
 			continue
 		}
 		hasExcessBalance := vBal > params.BeaconConfig().MinActivationBalance+pendingBalanceToWithdraw
@@ -194,7 +194,7 @@ func ProcessWithdrawalRequests(ctx context.Context, st state.BeaconState, wrs []
 				Amount:            toWithdraw,
 				WithdrawableEpoch: withdrawableEpoch,
 			}); err != nil {
-				log.WithError(err).Error("Could not append pending partial withdrawal")
+				log.WithError(err).Errorf("Could not append pending partial withdrawal for index %d", vIdx)
 				continue
 			}
 		}

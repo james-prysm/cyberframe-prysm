@@ -184,7 +184,7 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 	minValWithdrawDelay := params.BeaconConfig().MinValidatorWithdrawabilityDelay
 	pcLimit := params.BeaconConfig().PendingConsolidationsLimit
 
-	for _, cr := range reqs {
+	for i, cr := range reqs {
 		if ctx.Err() != nil {
 			return fmt.Errorf("cannot process consolidation requests: %w", ctx.Err())
 		}
@@ -209,7 +209,7 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 		}
 
 		if npc, err := st.NumPendingConsolidations(); err != nil {
-			log.WithError(err).Error("failed to fetch number of pending consolidations")
+			log.WithError(err).Errorf("failed to fetch number of pending consolidations at index %d", i)
 			continue
 		} else if npc >= pcLimit {
 			return nil
@@ -236,7 +236,7 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 
 		srcV, err := st.ValidatorAtIndex(srcIdx)
 		if err != nil {
-			log.WithError(err).Error("failed to fetch source validator")
+			log.WithError(err).Errorf("failed to fetch source validator index %d", srcIdx)
 			continue
 		}
 
@@ -248,7 +248,7 @@ func ProcessConsolidationRequests(ctx context.Context, st state.BeaconState, req
 
 		tgtV, err := st.ValidatorAtIndexReadOnly(tgtIdx)
 		if err != nil {
-			log.WithError(err).Error("failed to fetch target validator")
+			log.WithError(err).Errorf("failed to fetch target validator index %d", tgtIdx)
 			continue
 		}
 

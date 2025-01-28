@@ -607,42 +607,6 @@ func GenerateJsonElectraBeaconBlockContents() *structs.BeaconBlockContentsElectr
 							Signature: FillEncodedByteSlice(96, 53),
 						},
 					},
-					{
-						Attestation1: &structs.IndexedAttestationElectra{
-							AttestingIndices: []string{"54", "55"},
-							Data: &structs.AttestationData{
-								Slot:            "56",
-								CommitteeIndex:  "57",
-								BeaconBlockRoot: FillEncodedByteSlice(32, 38),
-								Source: &structs.Checkpoint{
-									Epoch: "59",
-									Root:  FillEncodedByteSlice(32, 60),
-								},
-								Target: &structs.Checkpoint{
-									Epoch: "61",
-									Root:  FillEncodedByteSlice(32, 62),
-								},
-							},
-							Signature: FillEncodedByteSlice(96, 63),
-						},
-						Attestation2: &structs.IndexedAttestationElectra{
-							AttestingIndices: []string{"64", "65"},
-							Data: &structs.AttestationData{
-								Slot:            "66",
-								CommitteeIndex:  "67",
-								BeaconBlockRoot: FillEncodedByteSlice(32, 38),
-								Source: &structs.Checkpoint{
-									Epoch: "69",
-									Root:  FillEncodedByteSlice(32, 70),
-								},
-								Target: &structs.Checkpoint{
-									Epoch: "71",
-									Root:  FillEncodedByteSlice(32, 72),
-								},
-							},
-							Signature: FillEncodedByteSlice(96, 73),
-						},
-					},
 				},
 				Attestations: []*structs.AttestationElectra{
 					{
@@ -901,42 +865,6 @@ func GenerateJsonBlindedElectraBeaconBlock() *structs.BlindedBeaconBlockElectra 
 							},
 						},
 						Signature: FillEncodedByteSlice(96, 53),
-					},
-				},
-				{
-					Attestation1: &structs.IndexedAttestationElectra{
-						AttestingIndices: []string{"54", "55"},
-						Data: &structs.AttestationData{
-							Slot:            "56",
-							CommitteeIndex:  "57",
-							BeaconBlockRoot: FillEncodedByteSlice(32, 38),
-							Source: &structs.Checkpoint{
-								Epoch: "59",
-								Root:  FillEncodedByteSlice(32, 60),
-							},
-							Target: &structs.Checkpoint{
-								Epoch: "61",
-								Root:  FillEncodedByteSlice(32, 62),
-							},
-						},
-						Signature: FillEncodedByteSlice(96, 63),
-					},
-					Attestation2: &structs.IndexedAttestationElectra{
-						AttestingIndices: []string{"64", "65"},
-						Data: &structs.AttestationData{
-							Slot:            "66",
-							CommitteeIndex:  "67",
-							BeaconBlockRoot: FillEncodedByteSlice(32, 38),
-							Source: &structs.Checkpoint{
-								Epoch: "69",
-								Root:  FillEncodedByteSlice(32, 70),
-							},
-							Target: &structs.Checkpoint{
-								Epoch: "71",
-								Root:  FillEncodedByteSlice(32, 72),
-							},
-						},
-						Signature: FillEncodedByteSlice(96, 73),
 					},
 				},
 			},

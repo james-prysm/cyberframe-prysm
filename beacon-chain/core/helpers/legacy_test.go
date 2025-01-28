@@ -1,9 +1,10 @@
-package helpers
+package helpers_test
 
 import (
 	"math"
 	"testing"
 
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/helpers"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/state"
 	state_native "github.com/prysmaticlabs/prysm/v5/beacon-chain/state/state-native"
 	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
@@ -85,7 +86,7 @@ func TestIsLegacyDepositProcessPeriod(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IsLegacyDepositProcessPeriod(tt.state, tt.canonicalEth1Data); got != tt.want {
+			if got := helpers.IsLegacyDepositProcessPeriod(tt.state, tt.canonicalEth1Data); got != tt.want {
 				t.Errorf("isLegacyDepositProcessPeriod() = %v, want %v", got, tt.want)
 			}
 		})

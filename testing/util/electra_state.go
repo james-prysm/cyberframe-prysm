@@ -77,8 +77,8 @@ func emptyGenesisStateElectra() (state.BeaconState, error) {
 		// Misc fields.
 		Slot: 0,
 		Fork: &ethpb.Fork{
-			PreviousVersion: params.BeaconConfig().BellatrixForkVersion,
-			CurrentVersion:  params.BeaconConfig().DenebForkVersion,
+			PreviousVersion: params.BeaconConfig().DenebForkVersion,
+			CurrentVersion:  params.BeaconConfig().ElectraForkVersion,
 			Epoch:           0,
 		},
 		// Validator registry fields.

@@ -15,6 +15,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/crypto/rand"
 	"github.com/prysmaticlabs/prysm/v5/encoding/bytesutil"
 	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
+	"github.com/prysmaticlabs/prysm/v5/runtime/version"
 	"github.com/prysmaticlabs/prysm/v5/time/slots"
 )
 
@@ -30,9 +31,16 @@ import (
 //   - Otherwise:
 //   - Determine the vote with the highest count. Prefer the vote with the highest eth1 block height in the event of a tie.
 //   - This vote's block is the eth1 block to use for the block proposal.
+//
+// POST ELECTRA: this should not be used
 func (vs *Server) eth1DataMajorityVote(ctx context.Context, beaconState state.BeaconState) (*ethpb.Eth1Data, error) {
 	ctx, cancel := context.WithTimeout(ctx, eth1dataTimeout)
 	defer cancel()
+
+	// voting is not needed after Electra
+	if beaconState.Version() >= version.Electra {
+		return vs.HeadFetcher.HeadETH1Data(), nil
+	}
 
 	slot := beaconState.Slot()
 	votingPeriodStartTime := vs.slotStartTime(slot)

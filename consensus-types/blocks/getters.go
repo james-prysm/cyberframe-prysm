@@ -224,6 +224,7 @@ func (b *SignedBeaconBlock) ToBlinded() (interfaces.ReadOnlySignedBeaconBlock, e
 		if err != nil {
 			return nil, errors.Wrap(err, "payload to header electra")
 		}
+
 		return initBlindedSignedBlockFromProtoElectra(
 			&eth.SignedBlindedBeaconBlockElectra{
 				Message: &eth.BlindedBeaconBlockElectra{
@@ -251,63 +252,11 @@ func (b *SignedBeaconBlock) ToBlinded() (interfaces.ReadOnlySignedBeaconBlock, e
 			})
 	}
 
-	switch p := payload.Proto().(type) {
-	case *enginev1.ExecutionPayload:
-		header, err := PayloadToHeader(payload)
-		if err != nil {
-			return nil, errors.Wrap(err, "payload to header")
+	if b.version >= version.Deneb {
+		p, ok := payload.Proto().(*enginev1.ExecutionPayloadDeneb)
+		if !ok {
+			return nil, fmt.Errorf("%T is not an execution payload header of Deneb version", p)
 		}
-		return initBlindedSignedBlockFromProtoBellatrix(
-			&eth.SignedBlindedBeaconBlockBellatrix{
-				Block: &eth.BlindedBeaconBlockBellatrix{
-					Slot:          b.block.slot,
-					ProposerIndex: b.block.proposerIndex,
-					ParentRoot:    b.block.parentRoot[:],
-					StateRoot:     b.block.stateRoot[:],
-					Body: &eth.BlindedBeaconBlockBodyBellatrix{
-						RandaoReveal:           b.block.body.randaoReveal[:],
-						Eth1Data:               b.block.body.eth1Data,
-						Graffiti:               b.block.body.graffiti[:],
-						ProposerSlashings:      b.block.body.proposerSlashings,
-						AttesterSlashings:      b.block.body.attesterSlashings,
-						Attestations:           b.block.body.attestations,
-						Deposits:               b.block.body.deposits,
-						VoluntaryExits:         b.block.body.voluntaryExits,
-						SyncAggregate:          b.block.body.syncAggregate,
-						ExecutionPayloadHeader: header,
-					},
-				},
-				Signature: b.signature[:],
-			})
-	case *enginev1.ExecutionPayloadCapella:
-		header, err := PayloadToHeaderCapella(payload)
-		if err != nil {
-			return nil, err
-		}
-		return initBlindedSignedBlockFromProtoCapella(
-			&eth.SignedBlindedBeaconBlockCapella{
-				Block: &eth.BlindedBeaconBlockCapella{
-					Slot:          b.block.slot,
-					ProposerIndex: b.block.proposerIndex,
-					ParentRoot:    b.block.parentRoot[:],
-					StateRoot:     b.block.stateRoot[:],
-					Body: &eth.BlindedBeaconBlockBodyCapella{
-						RandaoReveal:           b.block.body.randaoReveal[:],
-						Eth1Data:               b.block.body.eth1Data,
-						Graffiti:               b.block.body.graffiti[:],
-						ProposerSlashings:      b.block.body.proposerSlashings,
-						AttesterSlashings:      b.block.body.attesterSlashings,
-						Attestations:           b.block.body.attestations,
-						Deposits:               b.block.body.deposits,
-						VoluntaryExits:         b.block.body.voluntaryExits,
-						SyncAggregate:          b.block.body.syncAggregate,
-						ExecutionPayloadHeader: header,
-						BlsToExecutionChanges:  b.block.body.blsToExecutionChanges,
-					},
-				},
-				Signature: b.signature[:],
-			})
-	case *enginev1.ExecutionPayloadDeneb:
 		header, err := PayloadToHeaderDeneb(payload)
 		if err != nil {
 			return nil, errors.Wrap(err, "payload to header deneb")
@@ -336,9 +285,72 @@ func (b *SignedBeaconBlock) ToBlinded() (interfaces.ReadOnlySignedBeaconBlock, e
 				},
 				Signature: b.signature[:],
 			})
-	default:
-		return nil, fmt.Errorf("%T is not an execution payload header", p)
 	}
+
+	if b.version >= version.Capella {
+		p, ok := payload.Proto().(*enginev1.ExecutionPayloadCapella)
+		if !ok {
+			return nil, fmt.Errorf("%T is not an execution payload header of Capella version", p)
+		}
+		header, err := PayloadToHeaderCapella(payload)
+		if err != nil {
+			return nil, err
+		}
+		return initBlindedSignedBlockFromProtoCapella(
+			&eth.SignedBlindedBeaconBlockCapella{
+				Block: &eth.BlindedBeaconBlockCapella{
+					Slot:          b.block.slot,
+					ProposerIndex: b.block.proposerIndex,
+					ParentRoot:    b.block.parentRoot[:],
+					StateRoot:     b.block.stateRoot[:],
+					Body: &eth.BlindedBeaconBlockBodyCapella{
+						RandaoReveal:           b.block.body.randaoReveal[:],
+						Eth1Data:               b.block.body.eth1Data,
+						Graffiti:               b.block.body.graffiti[:],
+						ProposerSlashings:      b.block.body.proposerSlashings,
+						AttesterSlashings:      b.block.body.attesterSlashings,
+						Attestations:           b.block.body.attestations,
+						Deposits:               b.block.body.deposits,
+						VoluntaryExits:         b.block.body.voluntaryExits,
+						SyncAggregate:          b.block.body.syncAggregate,
+						ExecutionPayloadHeader: header,
+						BlsToExecutionChanges:  b.block.body.blsToExecutionChanges,
+					},
+				},
+				Signature: b.signature[:],
+			})
+	}
+
+	p, ok := payload.Proto().(*enginev1.ExecutionPayload)
+	if !ok {
+		return nil, fmt.Errorf("%T is not an execution payload header of Bellatrix version", p)
+	}
+	header, err := PayloadToHeader(payload)
+	if err != nil {
+		return nil, errors.Wrap(err, "payload to header")
+	}
+	return initBlindedSignedBlockFromProtoBellatrix(
+		&eth.SignedBlindedBeaconBlockBellatrix{
+			Block: &eth.BlindedBeaconBlockBellatrix{
+				Slot:          b.block.slot,
+				ProposerIndex: b.block.proposerIndex,
+				ParentRoot:    b.block.parentRoot[:],
+				StateRoot:     b.block.stateRoot[:],
+				Body: &eth.BlindedBeaconBlockBodyBellatrix{
+					RandaoReveal:           b.block.body.randaoReveal[:],
+					Eth1Data:               b.block.body.eth1Data,
+					Graffiti:               b.block.body.graffiti[:],
+					ProposerSlashings:      b.block.body.proposerSlashings,
+					AttesterSlashings:      b.block.body.attesterSlashings,
+					Attestations:           b.block.body.attestations,
+					Deposits:               b.block.body.deposits,
+					VoluntaryExits:         b.block.body.voluntaryExits,
+					SyncAggregate:          b.block.body.syncAggregate,
+					ExecutionPayloadHeader: header,
+				},
+			},
+			Signature: b.signature[:],
+		})
 }
 
 func (b *SignedBeaconBlock) Unblind(e interfaces.ExecutionData) error {

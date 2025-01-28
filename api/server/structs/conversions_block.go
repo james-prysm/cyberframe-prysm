@@ -2520,6 +2520,7 @@ func (b *BeaconBlockContentsElectra) ToConsensus() (*eth.BeaconBlockContentsElec
 	}, nil
 }
 
+// nolint:gocognit
 func (b *BeaconBlockElectra) ToConsensus() (*eth.BeaconBlockElectra, error) {
 	if b == nil {
 		return nil, errNilValue

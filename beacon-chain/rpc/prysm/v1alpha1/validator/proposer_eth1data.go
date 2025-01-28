@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	fastssz "github.com/prysmaticlabs/fastssz"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/blocks"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/helpers"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v5/config/features"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
@@ -15,7 +16,6 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/crypto/rand"
 	"github.com/prysmaticlabs/prysm/v5/encoding/bytesutil"
 	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
-	"github.com/prysmaticlabs/prysm/v5/runtime/version"
 	"github.com/prysmaticlabs/prysm/v5/time/slots"
 )
 
@@ -37,8 +37,8 @@ func (vs *Server) eth1DataMajorityVote(ctx context.Context, beaconState state.Be
 	ctx, cancel := context.WithTimeout(ctx, eth1dataTimeout)
 	defer cancel()
 
-	// voting is not needed after Electra
-	if beaconState.Version() >= version.Electra {
+	// post electra and transition period should not require voting
+	if !helpers.IsLegacyDepositProcessPeriod(beaconState, vs.HeadFetcher.HeadETH1Data()) {
 		return vs.HeadFetcher.HeadETH1Data(), nil
 	}
 

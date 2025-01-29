@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"fmt"
+	"time"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -15,6 +16,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/p2p/encoder"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/sync/rlnc"
+	"github.com/prysmaticlabs/prysm/v5/config/params"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/chunks"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/interfaces"
@@ -193,9 +195,14 @@ func (s *Service) reconstructBlockFromChunk(ctx context.Context, chunk interface
 		},
 	})
 
-	if err := s.beaconBlockSubscriber(ctx, protoBlock); err != nil {
-		logrus.WithError(err).Error("Could not handle p2p pubsub")
-	}
+	// create a new context to process the block
+	go func() {
+		slotCtx, cancel := context.WithTimeout(context.Background(), time.Duration(params.BeaconConfig().SecondsPerSlot)*time.Second)
+		defer cancel()
+		if err := s.beaconBlockSubscriber(slotCtx, protoBlock); err != nil {
+			logrus.WithError(err).Error("Could not handle p2p pubsub")
+		}
+	}()
 }
 
 func (s *Service) broadcastBlockChunk(ctx context.Context, chunk interfaces.ReadOnlyBeaconBlockChunk) {
